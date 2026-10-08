@@ -1,0 +1,10 @@
+import multer from 'multer';
+import {fileTypeFromBuffer} from 'file-type';
+import {v2 as cloudinary} from 'cloudinary';
+import {randomUUID} from 'node:crypto';
+import {run} from './db.js';
+cloudinary.config({cloud_name:process.env.CLOUDINARY_CLOUD_NAME,api_key:process.env.CLOUDINARY_API_KEY,api_secret:process.env.CLOUDINARY_API_SECRET});
+export const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:5*1024*1024,files:6,fields:30}});
+export async function validateFiles(files){for(const f of files){const t=await fileTypeFromBuffer(f.buffer);if(!t||!['image/jpeg','image/png','image/webp'].includes(t.mime)||f.mimetype!==t.mime)throw Object.assign(new Error('Upload JPG, PNG or WEBP images only (maximum 5 MB each).'),{status:400});f.format=t.ext;}}
+export async function store(file,product,privateFile=false){const id=randomUUID();if(process.env.CLOUDINARY_CLOUD_NAME){const result=await new Promise((resolve,reject)=>cloudinary.uploader.upload_stream({folder:privateFile?'campusloop/evidence':'campusloop/products',type:privateFile?'authenticated':'upload',resource_type:'image'},(e,r)=>e?reject(e):resolve(r)).end(file.buffer));if(privateFile)await run('INSERT INTO verification_evidence(id,product_id,storage_key,format) VALUES(?,?,?,?)',[id,product,result.public_id,result.format]);else await run('INSERT INTO product_images(id,product_id,url) VALUES(?,?,?)',[id,product,result.secure_url]);}else{if(process.env.NODE_ENV==='production')throw new Error('Cloudinary must be configured in production.');if(privateFile)await run('INSERT INTO verification_evidence(id,product_id,storage_key,format,bytes) VALUES(?,?,?,?,?)',[id,product,id,file.format,file.buffer]);else await run('INSERT INTO product_images(id,product_id,url) VALUES(?,?,?)',[id,product,`data:${file.mimetype};base64,${file.buffer.toString('base64')}`]);}}
+export async function privateBytes(e){if(e.bytes)return Buffer.from(e.bytes);const url=cloudinary.utils.private_download_url(e.storage_key,e.format,{type:'authenticated',expires_at:Math.floor(Date.now()/1000)+60});const r=await fetch(url);if(!r.ok)throw new Error('Evidence unavailable');return Buffer.from(await r.arrayBuffer());}

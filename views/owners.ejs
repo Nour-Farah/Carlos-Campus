@@ -1,0 +1,38 @@
+<%- include('partials/header') %>
+<section class="page-title">
+  <a class="text-link" href="/control">← Back to control panel</a>
+  <span class="eyebrow">PRIVATE OWNER WORKSPACE</span>
+  <h1>Two logins. One CampusLoop.</h1>
+  <p>Both owners have full access to listings, verification, users, and site settings.</p>
+</section>
+<% if(created){ %><p class="safety" role="status">The second owner login is ready. They can sign in at <a href="/owner/login">/owner/login</a> with their own email and password.</p><% } %>
+<div class="two-grid">
+  <% owners.forEach(account=>{ %>
+    <article class="panel">
+      <span class="badge mint"><%= account.id===user.id?'You · Owner':'Owner' %></span>
+      <h2><%= account.name %></h2>
+      <p><%= account.email %></p>
+      <small>Created <%= account.created_at.slice(0,10) %></small>
+    </article>
+  <% }) %>
+</div>
+<% if(owners.length<2){ %>
+<section class="panel profile-panel">
+  <h2>Add your second owner</h2>
+  <p>Use a separate email and password. Confirm your current owner password to create this login.</p>
+  <form method="post" action="/control/owners" class="stack">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label>Second owner’s name<input name="name" required minlength="2" maxlength="80" autocomplete="off"></label>
+    <label>Second owner’s email<input name="email" type="email" required maxlength="200" autocomplete="off"></label>
+    <div class="two-grid">
+      <label>New owner password<input name="password" type="password" required minlength="12" maxlength="72" autocomplete="new-password"></label>
+      <label>Confirm new password<input name="confirm_password" type="password" required minlength="12" maxlength="72" autocomplete="new-password"></label>
+    </div>
+    <label>Your current owner password<input name="current_password" type="password" required autocomplete="current-password"></label>
+    <button class="button">Create second owner login →</button>
+  </form>
+</section>
+<% }else{ %>
+<section class="panel"><h2>Both owner logins are configured.</h2><p>Each owner signs in through <a class="text-link" href="/owner/login">the owner portal</a>. Public registration remains limited to buyers and sellers.</p></section>
+<% } %>
+<%- include('partials/footer') %>
